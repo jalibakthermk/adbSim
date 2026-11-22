@@ -6,8 +6,9 @@ import { hvToDir } from '../src/core/frames.js';
 import { intensityDir, intensityHV, sampleHV } from '../src/core/photometry.js';
 import { parseIES } from '../src/core/ies.js';
 import {
-  demoLowBeam, demoHighBeam, demoSegments, segmentMask, edgeStep, highBeamProfile, DEMO_SEGMENT_EDGES,
+  demoLowBeam, demoHighBeam, demoSegments, highBeamProfile, DEMO_SEGMENT_EDGES, DEMO_SOFT_EDGE,
 } from '../src/core/demo.js';
+import { segmentMask, edgeStep } from '../src/core/segments.js';
 
 // ---- Ported from GLEn test 10 ----
 test('GLEn 10 · demo low beam: LHT is the mirror of RHT', () => {
@@ -23,7 +24,7 @@ test('edgeStep is 0 / 0.5 / 1 left of, at and right of the boundary', () => {
 
 test('segment masks form a partition of unity inside the high-beam field', () => {
   for (let h = -24; h <= 24; h += 0.37) {
-    let s = 0; for (let i = 0; i < DEMO_SEGMENT_EDGES.length - 1; i++) s += segmentMask(h, i);
+    let s = 0; for (let i = 0; i < DEMO_SEGMENT_EDGES.length - 1; i++) s += segmentMask(h, i, DEMO_SEGMENT_EDGES, DEMO_SOFT_EDGE);
     near(s, 1, 1e-12, `h = ${h}`);
   }
 });

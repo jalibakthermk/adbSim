@@ -1,7 +1,9 @@
-/* Intensity toward a direction. intensityDir ported from GLEn v0.2. Pure: no DOM, no globals.
-   The lamp model (low + Σ w_i·seg_i) arrives in Phase 1. */
+/* Intensity toward a direction (intensityDir ported from GLEn v0.2) and the lamp model low + Σ w_i·seg_i.
+   Pure: no DOM, no globals. */
 import { lookupRaw } from './ies.js';
 import { DEG, hvToDir } from './frames.js';
+import { resampleHV, gridAt, weightedSum } from './grid.js';
+import { syntheticSegments, supportBox, segmentBoundaries } from './segments.js';
 
 /** Lamp-frame direction (x fwd, yR right-positive, z up) → intensity (cd).
     opt: { hdirRight, angleSys: 'auto'|'A'|'B'|'C', cForward: C-plane pointing straight ahead (Type C only) } */
@@ -44,3 +46,52 @@ export function sampleHV(f, [h0, h1], [v0, v1], step) {
 export function intensityHV(ies, Hdeg, Vdeg, opt = { hdirRight: true }) {
   return intensityDir(ies, ...hvToDir(Hdeg, Vdeg), opt);
 }
+
+/* ---------------- Lamp model: I(dir) = I_low(dir) + Σ_i w_i · I_seg,i(dir) ----------------
+   Every beam is resampled once per load onto a shared H-V field, so evaluating the lamp is a weighted sum of grids. */
+
+/** Default field covering the high-beam zone: H −40…40°, V −12…10°, 0.1° step. */
+export const DEFAULT_FIELD = { H: [-40, 40], V: [-12, 10], step: 0.1 };
+
+/** Build one lamp from parsed IES objects.
+    spec: { low, segments: [ies] }               – per-file segments, or
+          { low, highBeam, edges, soft }          – synthetic segmentation of one high beam
+    opt: intensityDir options (hdirRight, angleSys, cForward); field: makeField() result; supportFrac: S_i threshold.
+    Returns { field, low, segs, highBeam, supports, order, boundaries, mode }. */
+export function buildLamp(spec, opt, field, supportFrac = 0.05) {
+  const rs = ies => resampleHV((h, v) => intensityHV(ies, h, v, opt), field);
+  const low = spec.low ? rs(spec.low) : null;
+  let segs, highBeam = null, mode;
+  if (spec.highBeam) {
+    if (!spec.edges || spec.edges.length < 2) throw new Error('Synthetic segmentation needs at least two boundaries.');
+    highBeam = rs(spec.highBeam);
+    segs = syntheticSegments(highBeam, spec.edges, spec.soft ?? 0);
+    mode = 'synthetic';
+  } else {
+    segs = (spec.segments || []).map(rs);
+    mode = 'files';
+  }
+  const supports = segs.map(g => supportBox(g, supportFrac));
+  const { order, boundaries } = segs.length ? segmentBoundaries(segs) : { order: [], boundaries: [] };
+  return { field, low, segs, highBeam, supports, order, boundaries, mode };
+}
+
+/** Total intensity grid of a lamp for segment weights w (w_i ∈ [0, 1]; missing = 1). */
+export function lampGrid(lamp, w = []) {
+  if (!lamp.segs.length) return lamp.low ? { field: lamp.field, data: Float32Array.from(lamp.low.data) } : null;
+  return weightedSum(lamp.low, lamp.segs, lamp.segs.map((_, i) => clamp01(w[i] ?? 1)));
+}
+
+/** Total intensity (cd) of a lamp at display angles (H right-positive, V up) for weights w. */
+export function lampIntensityHV(lamp, w, h, v) {
+  let I = lamp.low ? gridAt(lamp.low, h, v) : 0;
+  lamp.segs.forEach((g, i) => { const k = clamp01(w[i] ?? 1); if (k) I += k * gridAt(g, h, v); });
+  return I;
+}
+
+/** Sum of several lamp grids on the same field (e.g. left + right lamp in the beam view). */
+export function sumGrids(grids) {
+  return weightedSum(null, grids, grids.map(() => 1));
+}
+
+function clamp01(x) { return Math.max(0, Math.min(1, +x || 0)); }

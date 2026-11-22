@@ -4,6 +4,7 @@
      [edges[i], edges[i+1]] with a smoothstep edge of `soft` degrees. The masks telescope, so the segments
      sum exactly to the high beam. */
 import { DEG } from './frames.js';
+import { edgeStep, segmentMask } from './segments.js';
 
 const smooth = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 
@@ -38,22 +39,12 @@ export function demoLowBeam(lht = false) {
 /** Default segment boundaries (H, degrees, H+ right): 12 segments, narrower near the axis. */
 export const DEMO_SEGMENT_EDGES = [-25, -16, -11, -7.5, -4.5, -2, 0, 2, 4.5, 7.5, 11, 16, 25];
 export const DEMO_SOFT_EDGE = 0.5;
-const HB_GRID = { H: [-30, 30], V: [-8, 8], step: 0.25 };
+const HB_GRID = { H: [-30, 30], V: [-12, 12], step: 0.25 };
 
 /** Unmasked high-beam profile (cd) at (h, v). */
 export function highBeamProfile(h, v) {
   return 55000 * Math.exp(-(h * h) / (2 * 5 ** 2) - ((v - 0.3) ** 2) / (2 * 1.4 ** 2))
        + 9000 * Math.exp(-(h * h) / (2 * 14 ** 2) - ((v + 0.5) ** 2) / (2 * 3 ** 2));
-}
-
-/** Soft step at boundary b: 0 well left of b, 1 well right, 0.5 at b. */
-export function edgeStep(h, b, soft = DEMO_SOFT_EDGE) {
-  return soft <= 0 ? (h >= b ? 1 : 0) : smooth((h - b + soft / 2) / soft);
-}
-
-/** Weight of segment i (between edges[i] and edges[i+1]) at horizontal angle h. */
-export function segmentMask(h, i, edges = DEMO_SEGMENT_EDGES, soft = DEMO_SOFT_EDGE) {
-  return edgeStep(h, edges[i], soft) - edgeStep(h, edges[i + 1], soft);
 }
 
 /** Full synthetic high beam = profile masked to [edges[0], edges.at(-1)]. */
