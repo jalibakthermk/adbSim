@@ -41,7 +41,7 @@ export function syntheticSegments(hbGrid, edges, soft) {
   });
 }
 
-/** Support S_i: the H-V box where the segment gives more than `frac` of its own peak.
+/** Support S_i: the H-V box where the segment gives more than `frac` of its own peak, widened by one grid step.
     Returns { hMin, hMax, vMin, vMax, peak } or null for an empty segment. */
 export function supportBox({ field, data }, frac = 0.05) {
   let peak = 0; for (let p = 0; p < data.length; p++) if (data[p] > peak) peak = data[p];
@@ -51,7 +51,13 @@ export function supportBox({ field, data }, frac = 0.05) {
   for (let j = 0; j < field.nV; j++) for (let i = 0; i < field.nH; i++) {
     if (data[j * field.nH + i] > thr) { if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j; }
   }
-  return { hMin: hAt(field, i0), hMax: hAt(field, i1), vMin: vAt(field, j0), vMax: vAt(field, j1), peak };
+  // Bilinear lookup gives light up to the next grid point, so widen by one step (clipped to the field):
+  // a box in the last sub-step before a hard boundary must still switch the segment off.
+  const s = field.step, hEnd = hAt(field, field.nH - 1), vEnd = vAt(field, field.nV - 1);
+  return {
+    hMin: Math.max(field.h0, hAt(field, i0) - s), hMax: Math.min(hEnd, hAt(field, i1) + s),
+    vMin: Math.max(field.v0, vAt(field, j0) - s), vMax: Math.min(vEnd, vAt(field, j1) + s), peak,
+  };
 }
 
 /** Flux-weighted centre H of a segment (from its column sums). NaN for an empty segment. */

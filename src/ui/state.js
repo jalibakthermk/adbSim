@@ -18,11 +18,12 @@ export function createState() {
     // Ego origin: road surface under the midpoint between the lamps. Camera behind the windscreen near the mirror.
     vehicle: { spacing: 1.4, hLamp: 0.65, xLamp: 0, aimV: 0, aimH: 0, camera: { x: -1.8, y: 0, z: 1.3 }, speed_kmh: 100 },
     road: { traffic: 'RHT', laneWidth: 3.5, lanesPerDir: 1, geometry: 'straight', R: Infinity },
-    targets: [{ id: 1, type: 'oncoming_car', lane: 1, d: 100 }],
+    targets: [{ id: 1, type: 'oncoming_car', lane: 1, d: 100, speed_kmh: 100 }],   // d at t = 0; speed along its own heading
     controller: { auto: true, marginH: 0.5, marginV: 0.5, minTunnel: 0, latency_ms: 0, rule: 'off', dMin: 0, maxTargets: 8 },
     glare: { La: 1 },                     // adaptation luminance for de Boer (cd/m²)
     roadView: { mode: 'adb', method: 'vertical', evalH: 0, xMax: 200 },   // mode: 'hb' | 'adb' | 'diff'
     metrics: { thr: 1 },                  // detection-distance threshold (lx)
+    scenario: { dynamic: false, vEgo_kmh: 100, tMax: 4, dt: 0.02, time: 0 },   // dynamic off = static scene at t = 0
     limits: null,                         // loaded from data/limits.json (null values = no limit)
     limitsText: '',
   };

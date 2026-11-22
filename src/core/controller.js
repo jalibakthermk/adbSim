@@ -1,6 +1,9 @@
 /* ADB controller: detected boxes (camera) → margins → lamp boxes (parallax) → segment weights; low-beam fallback.
-   Latency arrives in Phase 4. Pure: no DOM, no globals. */
+   Latency is applied by the scenario step (scenario.js): the controller sees the scene at t − latency. Pure: no DOM, no globals. */
 import { anglesFrom, cameraBoxToLamp } from './frames.js';
+
+/** Targets closer than this ahead of the camera (m) are not detected: they are passing or behind. */
+export const MIN_DEPTH = 1;
 
 /** Angular box of points seen from the camera (camera axes = ego axes). Also the nearest depth (x ahead of camera). */
 export function featureBox(points, cam) {
@@ -46,10 +49,13 @@ export function maskWeights(supports, boxes, rule = 'off') {
 
 /** One controller step on a scene.
     lampModels: { L, R } from buildLamp; ctrl: { marginH, marginV, minTunnel, rule, dMin, maxTargets }.
-    Returns { boxes: [{ id, cam, camM, lamp: { L, R } (with margins), lampRaw: { L, R } (detected) }], weights: { L, R }, fallback: null | 'distance' | 'count' } */
+    Returns { boxes: [{ id, visible, cam, camM, lamp: { L, R } (with margins), lampRaw: { L, R } (detected) }], weights: { L, R }, fallback: null | 'distance' | 'count' } */
 export function controllerUpdate(scene, lampModels, ctrl) {
   const boxes = scene.targets.map(t => {
     const cam = featureBox([...t.lamps.map(l => l.p), ...t.glarePoints.map(g => g.p)], scene.camera);
+    // A target is detected only when all its features are ahead of the camera (it has not passed yet).
+    const visible = cam.depth > MIN_DEPTH;
+    if (!visible) return { id: t.id, visible, cam, camM: null, lamp: null, lampRaw: null };
     const camM = addMargins(cam, ctrl.marginH, ctrl.marginV, ctrl.minTunnel);
     const lamp = {}, lampRaw = {};
     for (const k of ['L', 'R']) {
@@ -57,15 +63,16 @@ export function controllerUpdate(scene, lampModels, ctrl) {
       lamp[k] = cameraBoxToLamp(camM, cam.depth, scene.camera, L.pos, L.aimV, L.aimH);
       lampRaw[k] = cameraBoxToLamp(cam, cam.depth, scene.camera, L.pos, L.aimV, L.aimH);
     }
-    return { id: t.id, cam, camM, lamp, lampRaw };
+    return { id: t.id, visible, cam, camM, lamp, lampRaw };
   });
+  const seen = scene.targets.filter((_, i) => boxes[i].visible);
   let fallback = null;
-  if (scene.targets.some(t => t.d < (ctrl.dMin || 0))) fallback = 'distance';
-  else if (scene.targets.length > (ctrl.maxTargets ?? Infinity)) fallback = 'count';
+  if (seen.some(t => t.d < (ctrl.dMin || 0))) fallback = 'distance';
+  else if (seen.length > (ctrl.maxTargets ?? Infinity)) fallback = 'count';
   const weights = {};
   for (const k of ['L', 'R']) {
     const sup = lampModels[k].supports;
-    weights[k] = fallback ? sup.map(() => 0) : maskWeights(sup, boxes.map(b => b.lamp[k]), ctrl.rule);
+    weights[k] = fallback ? sup.map(() => 0) : maskWeights(sup, boxes.filter(b => b.visible).map(b => b.lamp[k]), ctrl.rule);
   }
   return { boxes, weights, fallback };
 }

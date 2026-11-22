@@ -51,7 +51,7 @@ test('syntheticSegments sum to the high beam inside the outer edges', () => {
 test('supportBox brackets the segment and is null for an empty one', () => {
   const [s0] = syntheticSegments(hb, edges, 0);
   const box = supportBox(s0, 0.05);
-  assert.ok(box.hMin >= -8 && box.hMax <= -3 + 1e-9, JSON.stringify(box));
+  assert.ok(box.hMin >= -8 - 0.5 && box.hMax <= -3 + 0.5 + 1e-9, JSON.stringify(box)); // widened by one grid step
   assert.equal(supportBox(resampleHV(() => 0, field)), null);
 });
 

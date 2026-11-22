@@ -20,3 +20,21 @@ export function buildScene({ vehicle, road, targets, typeDefs }) {
     }),
   };
 }
+
+/** Distance (m) of a target at time t (s) on a straight road, from its distance d at t = 0.
+    v_kmh is the target's own speed along its heading, vEgo_kmh the ego speed.
+    Oncoming: d(t) = d − (v_ego + v)·t. Own direction (preceding): d(t) = d + (v − v_ego)·t. */
+export function distanceAt(t, d, direction, v_kmh, vEgo_kmh) {
+  const v = (v_kmh || 0) / 3.6, ve = (vEgo_kmh || 0) / 3.6;
+  return direction === 'oncoming' ? d - (ve + v) * t : d + (v - ve) * t;
+}
+
+/** Scene at time t: every target moved along its trajectory (1-D). cfg as buildScene plus vEgo_kmh;
+    each target may carry speed_kmh. */
+export function buildSceneAt(cfg, t) {
+  const targets = cfg.targets.map(tg => {
+    const def = cfg.typeDefs[tg.type];
+    return def ? { ...tg, d: distanceAt(t, tg.d, def.direction, tg.speed_kmh, cfg.vEgo_kmh) } : tg;
+  });
+  return buildScene({ ...cfg, targets });
+}

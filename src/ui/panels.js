@@ -52,8 +52,10 @@ export function renderTargets(container, targets, typeDefs, onChange) {
       <select aria-label="Target ${n + 1} type">${opts}</select>
       <label class="l-lane">Lane <input type="number" min="1" step="1" value="${t.lane}" aria-label="Target ${n + 1} lane"></label>
       <label class="l-d">d (m) <input type="number" min="1" step="5" value="${t.d}" aria-label="Target ${n + 1} distance in m"></label>
+      <label class="l-v">v (km/h) <input type="number" min="0" step="10" value="${t.speed_kmh ?? 0}" aria-label="Target ${n + 1} speed in km/h"></label>
       <button type="button" class="rm" aria-label="Remove target ${n + 1}" title="Remove">×</button>`;
-    const [sel, lane, d] = row.querySelectorAll('select, input');
+    const [sel, lane, d, v] = row.querySelectorAll('select, input');
+    v.addEventListener('change', () => { const x = parseFloat(v.value); if (x >= 0) { t.speed_kmh = x; onChange(); } else v.value = t.speed_kmh ?? 0; });
     sel.addEventListener('change', () => { t.type = sel.value; onChange(); });
     lane.addEventListener('change', () => { const v = parseInt(lane.value, 10); if (v >= 1) { t.lane = v; onChange(); } else lane.value = t.lane; });
     d.addEventListener('change', () => { const v = parseFloat(d.value); if (v > 0) { t.d = v; onChange(); } else d.value = t.d; });

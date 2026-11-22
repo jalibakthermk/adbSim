@@ -47,6 +47,7 @@ canvas.view{display:block;width:100%;height:400px}
 .file{margin:8px 0 10px}
 .file label{display:block;color:var(--text-secondary);margin-bottom:3px}
 .file input{font-size:12px;max-width:100%}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .file .fname{font-size:12px;color:var(--text-muted);margin-top:3px;word-break:break-all}
 button{font:inherit;color:var(--text-primary);background:var(--surface-1);border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer}
 button:hover{background:var(--surface-2)}
@@ -69,10 +70,11 @@ button:hover{background:var(--surface-2)}
 .seg-mixed{background:linear-gradient(135deg,var(--accent) 50%,var(--surface-1) 50%)}
 canvas.legend{display:block;width:100%;height:32px}
 canvas.view{cursor:crosshair}
-.target-row{display:grid;grid-template-columns:22px 1fr 1fr 28px;grid-template-areas:"n type type rm" ". lane d .";gap:4px 6px;align-items:center;margin:6px 0 10px;font-size:12px;color:var(--text-secondary)}
+.target-row{display:grid;grid-template-columns:22px 1fr 1fr 1fr 28px;grid-template-areas:"n type type type rm" ". lane d v .";gap:4px 6px;align-items:center;margin:6px 0 10px;font-size:12px;color:var(--text-secondary)}
 .target-row .tnum{grid-area:n}.target-row select{grid-area:type}.target-row .rm{grid-area:rm}
 .target-row label{display:flex;gap:4px;align-items:center;white-space:nowrap}
-.target-row .l-lane{grid-area:lane}.target-row .l-d{grid-area:d}
+.target-row .l-lane{grid-area:lane}.target-row .l-d{grid-area:d}.target-row .l-v{grid-area:v}
+.target-row label{flex-direction:column;align-items:flex-start;gap:2px}
 .target-row select,.target-row input{padding:4px 5px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);font:inherit;color:var(--text-primary);min-width:0}
 .target-row select{width:100%}
 .target-row input{width:100%}
@@ -98,6 +100,10 @@ canvas.roadcv{display:block;width:100%;height:300px;border-radius:6px}
 .legend-chips{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--text-secondary);margin:6px 0}
 .legend-chips span{display:inline-flex;gap:4px;align-items:center}
 .legend-chips i{display:inline-block;width:12px;height:12px;border-radius:2px}
+canvas.tl{display:block;width:100%;height:240px}
+canvas.strip{display:block;width:100%;height:84px;margin-top:6px}
+input[type=range]{flex:1;min-width:120px}
+.export-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 textarea.json{width:100%;min-height:150px;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text-primary)}
 
 footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
@@ -105,11 +111,23 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
 </head>
 <body>
 <header>
-  <h1>adbSim <span class="ver">v0.3.0</span></h1>
+  <h1>adbSim <span class="ver">v0.4.0</span></h1>
   <span class="sub">ADB / matrix beam simulator</span>
 </header>
 <div class="layout">
   <aside>
+    <section class="panel">
+      <h2>Project and export</h2>
+      <div class="export-grid">
+        <button type="button" id="saveProject">Save project</button>
+        <label class="file" style="margin:0"><span class="sr-only">Open project</span><input type="file" id="fProject" accept=".json,.adb.json,application/json" aria-label="Open a project file (.adb.json)"></label>
+        <button type="button" id="csvGlare">Glare table CSV</button><button type="button" id="csvTimeline">Timeline CSV</button>
+        <button type="button" id="pngBeam">Beam view PNG</button><button type="button" id="pngRoad">Road view PNG</button>
+        <button type="button" id="pngTimeline">Timeline PNG</button>
+      </div>
+      <p class="hint">A project (*.adb.json) embeds the IES files, scene, controller, limits and scenario, so it reproduces the run.</p>
+      <div class="msg" id="exportMsg" role="status"></div>
+    </section>
     <section class="panel">
       <h2>Photometry</h2>
       <div class="row"><button type="button" id="demo">Load demo</button><button type="button" id="clearR">Right = left</button></div>
@@ -154,6 +172,16 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
       <div class="field"><label for="cMaxT">Low beam above N targets</label><input id="cMaxT" type="number" min="0" step="1"></div>
     </section>
     <section class="panel">
+      <h2>Dynamic scenario</h2>
+      <label class="check"><input type="checkbox" id="scDynamic"> Targets move (1-D trajectories)</label>
+      <div class="field"><label for="scVego">Ego speed (km/h)</label><input id="scVego" type="number" min="0" step="10"></div>
+      <div class="field"><label for="cLatency">Latency (ms)</label><input id="cLatency" type="number" min="0" step="10"></div>
+      <div class="field"><label for="scTmax">Duration (s)</label><input id="scTmax" type="number" min="0.1" step="0.5"></div>
+      <div class="field"><label for="scDt">Time step (s)</label><input id="scDt" type="number" min="0.001" step="0.005"></div>
+      <div class="row"><button type="button" id="fitT">Fit duration to targets</button></div>
+      <p class="hint">d and v in the target list are at t = 0. Oncoming targets close at ego + target speed; preceding ones move at target − ego speed. The controller sees each target's position from t − latency.</p>
+    </section>
+    <section class="panel">
       <h2>Vehicle and road</h2>
       <div class="field"><label for="rTraffic">Traffic</label><select id="rTraffic"><option value="RHT">Right-hand (RHT)</option><option value="LHT">Left-hand (LHT)</option></select></div>
       <div class="field"><label for="rLaneW">Lane width (m)</label><input id="rLaneW" type="number" min="1" step="0.25"></div>
@@ -192,6 +220,21 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
       <div id="toggles"></div>
       <p class="hint">Click a segment button, or click the map, to switch that segment off or on (this switches ADB auto off).</p>
     </section>
+    <section class="panel" id="timelinePanel" style="margin-top:12px" hidden>
+      <h2>Timeline</h2>
+      <div class="toolbar">
+        <button type="button" id="play">▶ Play</button>
+        <select id="playRate" aria-label="Playback speed"><option value="0.1">×0.1</option><option value="0.25" selected>×0.25</option><option value="0.5">×0.5</option><option value="1">×1</option></select>
+        <input type="range" id="tSlider" min="0" max="4" step="0.02" value="0" aria-label="Playback time">
+        <span class="cursor" id="tNow" style="margin-left:0"></span>
+      </div>
+      <canvas id="timeline" class="tl" aria-label="Glare-point illuminance against time. Click to jump to a time."></canvas>
+      <div class="legend-chips" id="tlLegend"></div>
+      <canvas id="stripL" class="strip" aria-label="Left lamp segment states over time"></canvas>
+      <canvas id="stripR" class="strip" aria-label="Right lamp segment states over time"></canvas>
+      <p class="hint">Strips: one row per segment (1 at the top), filled = on, empty = off. The slider drives the beam view, road view, glare table and metrics.</p>
+      <p class="hint" id="tlInfo"></p>
+    </section>
     <section class="panel" style="margin-top:12px">
       <h2>Glare at target points</h2>
       <div class="table-wrap"><table class="glare">
@@ -220,7 +263,7 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
     </section>
   </main>
 </div>
-<footer>adbSim v0.3.0 · © 2026 Jalib Akther · MIT License</footer>
+<footer>adbSim v0.4.0 · © 2026 Jalib Akther · MIT License</footer>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
