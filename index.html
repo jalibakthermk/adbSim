@@ -87,13 +87,25 @@ table.glare th.num{text-align:right}
 table.glare .strong{font-weight:600}
 table.glare .empty{color:var(--text-muted);text-align:center}
 .table-wrap{overflow-x:auto}
+.st{display:inline-flex;gap:4px;align-items:center;font-weight:600;white-space:nowrap}
+.st-pass{color:var(--good)}.st-fail{color:var(--critical)}.st-none{color:var(--text-muted);font-weight:500}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px}
+.tile{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.tile .t-head{font-size:12px;color:var(--text-secondary);margin-bottom:4px}
+.tile .t-big{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.tile .t-sub{font-size:11.5px;color:var(--text-muted);margin-top:3px;line-height:1.35}
+canvas.roadcv{display:block;width:100%;height:300px;border-radius:6px}
+.legend-chips{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--text-secondary);margin:6px 0}
+.legend-chips span{display:inline-flex;gap:4px;align-items:center}
+.legend-chips i{display:inline-block;width:12px;height:12px;border-radius:2px}
+textarea.json{width:100%;min-height:150px;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text-primary)}
 
 footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
 </style>
 </head>
 <body>
 <header>
-  <h1>adbSim <span class="ver">v0.2.0</span></h1>
+  <h1>adbSim <span class="ver">v0.3.0</span></h1>
   <span class="sub">ADB / matrix beam simulator</span>
 </header>
 <div class="layout">
@@ -156,6 +168,14 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
       <div class="field"><label for="gLa">Adaptation lum. (cd/m²)</label><input id="gLa" type="number" min="0.01" step="0.1"></div>
       <p class="hint">Origin on the road under the midpoint between the lamps. Aim applies to both lamps.</p>
     </section>
+    <section class="panel">
+      <h2>Limits</h2>
+      <p class="hint">Loaded from data/limits.json. The shipped file has no values (null = no limit): fill them in from the regulation or customer specification.</p>
+      <textarea id="limitsText" class="json" spellcheck="false" aria-label="Limits JSON"></textarea>
+      <div class="row" style="margin-top:6px"><button type="button" id="limitsApply">Apply</button><button type="button" id="limitsReset">Reload file</button>
+        <label class="file" style="margin:0"><input type="file" id="fLimits" accept=".json,application/json" aria-label="Load a limits JSON file"></label></div>
+      <div class="msg" id="limitsMsg" role="status"></div>
+    </section>
   </aside>
   <main class="main">
     <section class="panel">
@@ -175,14 +195,32 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
     <section class="panel" style="margin-top:12px">
       <h2>Glare at target points</h2>
       <div class="table-wrap"><table class="glare">
-        <thead><tr><th>Target</th><th>Point</th><th class="num">d (m)</th><th class="num">E ADB (lx)</th><th class="num">E low only (lx)</th><th class="num">E full HB (lx)</th><th class="num">θ (°)</th><th class="num">de Boer W</th></tr></thead>
+        <thead><tr><th>Target</th><th>Point</th><th class="num">d (m)</th><th class="num">E ADB (lx)</th><th class="num">E low only (lx)</th><th class="num">E full HB (lx)</th><th class="num">θ (°)</th><th class="num">de Boer W</th><th class="num">Limit (lx)</th><th>Result</th></tr></thead>
         <tbody id="glareBody"></tbody>
       </table></div>
-      <p class="hint">E = Σ τ·I/r² over both lamps, on a plane normal to each ray. θ is the angle between the observer's view back toward you and the nearer lamp. Pass/fail against limits.json comes in Phase 3.</p>
+      <p class="hint">E = Σ τ·I/r² over both lamps, on a plane normal to each ray. θ is the angle between the observer's view back toward you and the nearer lamp. Limits come only from limits.json; the strictest matching entry applies, linear between listed distances.</p>
+    </section>
+    <section class="panel" style="margin-top:12px">
+      <h2>Road view (bird's eye)</h2>
+      <div class="toolbar">
+        <select id="rvMode" aria-label="Road view shows"><option value="adb">ADB</option><option value="hb">Full high beam</option><option value="diff">Difference (HB − ADB)</option></select>
+        <select id="rvMethod" aria-label="Illuminance method"><option value="vertical">Vertical planes on road</option><option value="road">Road surface</option></select>
+        <label class="check" style="margin:0">Eval. height <input id="rvEvalH" type="number" min="0" step="0.05" style="width:62px"> m</label>
+        <label class="check" style="margin:0">To <input id="rvXmax" type="number" min="20" step="10" style="width:66px"> m</label>
+        <span class="cursor" id="roadCursor"></span>
+      </div>
+      <canvas id="road" class="roadcv" aria-label="Road isolux plot, bird's eye view"></canvas>
+      <div class="legend-chips" id="roadLegend"></div>
+      <p class="hint" id="roadInfo"></p>
+    </section>
+    <section class="panel" style="margin-top:12px">
+      <h2>Kept illumination</h2>
+      <div id="metrics"></div>
+      <div class="field" style="max-width:320px"><label for="mThr">Detection threshold (lx)</label><input id="mThr" type="number" min="0.01" step="0.1"></div>
     </section>
   </main>
 </div>
-<footer>adbSim v0.2.0 · © 2026 Jalib Akther · MIT License</footer>
+<footer>adbSim v0.3.0 · © 2026 Jalib Akther · MIT License</footer>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>

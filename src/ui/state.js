@@ -21,6 +21,9 @@ export function createState() {
     targets: [{ id: 1, type: 'oncoming_car', lane: 1, d: 100 }],
     controller: { auto: true, marginH: 0.5, marginV: 0.5, minTunnel: 0, latency_ms: 0, rule: 'off', dMin: 0, maxTargets: 8 },
     glare: { La: 1 },                     // adaptation luminance for de Boer (cd/m²)
-    limits: null,
+    roadView: { mode: 'adb', method: 'vertical', evalH: 0, xMax: 200 },   // mode: 'hb' | 'adb' | 'diff'
+    metrics: { thr: 1 },                  // detection-distance threshold (lx)
+    limits: null,                         // loaded from data/limits.json (null values = no limit)
+    limitsText: '',
   };
 }

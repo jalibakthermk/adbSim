@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { near } from './helpers.js';
-import { laneCenterY, placeTarget } from '../src/core/targets.js';
+import { laneCenterY, placeTarget, targetOutline } from '../src/core/targets.js';
 import { buildScene } from '../src/core/scene.js';
 import { makeField } from '../src/core/grid.js';
 import { buildLamp } from '../src/core/photometry.js';
@@ -51,4 +51,9 @@ test('VAL 1 · inverse square: uniform 1000 cd segment, eye at 50 m → E = Σ �
   const [row] = glareTable(scene, lamps, { L: [1], R: [1] });
   near(row.E_low, 0, 0, 'low-only (no low beam)'); near(row.E_hb, g.E, 1e-12, 'full high beam');
   assert.ok(row.W >= 1 && row.W <= 9);
+});
+
+test('targetOutline: oncoming starts at its front, uses the size from the type', () => {
+  const o = targetOutline({ ...car, size: { length: 4.5, width: 1.8 } }, { lane: 1, d: 100 }, { ...road, lanesPerDir: 1 });
+  assert.deepEqual([o.x0, o.x1], [100, 104.5]); near(o.y0, 3.5 - 0.9, 1e-12, 'y0'); near(o.y1, 3.5 + 0.9, 1e-12, 'y1');
 });

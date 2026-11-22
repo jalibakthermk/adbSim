@@ -66,3 +66,15 @@ export function cropGrid({ field, data }, [h0, h1], [v0, v1]) {
   for (let j = 0; j < f.nV; j++) out.set(data.subarray((j0 + j) * field.nH + i0, (j0 + j) * field.nH + i1 + 1), j * f.nH);
   return { field: f, data: out };
 }
+
+/** Luminous flux (lm) of an intensity grid in Type-A angles: Φ = Σ I · cos V · ΔH · ΔV (radians). */
+export function gridFlux({ field, data }) {
+  const dA = (field.step * Math.PI / 180) ** 2;
+  let s = 0;
+  for (let j = 0; j < field.nV; j++) {
+    const c = Math.cos(vAt(field, j) * Math.PI / 180);
+    let row = 0; for (let i = 0; i < field.nH; i++) row += data[j * field.nH + i];
+    s += row * c;
+  }
+  return s * dA;
+}

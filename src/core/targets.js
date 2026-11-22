@@ -24,3 +24,11 @@ export function placeTarget(def, { lane = 1, d }, road) {
     glarePoints: def.glarePoints.map(g => ({ id: g.id, label: g.label, p: toEgo(g), tau: g.tau ?? 1 })),
   };
 }
+
+/** Plan-view outline of a placed target on a straight road: { x0, x1, y0, y1 } in the ego frame (m).
+    Oncoming: from its front at d back to d + length. Preceding: from its rear at d forward to d + length. */
+export function targetOutline(def, { lane = 1, d }, road) {
+  const { length = 4.5, width = 1.8 } = def.size || {};
+  const yc = laneCenterY(road, def.direction, lane);
+  return { x0: d, x1: d + length, y0: yc - width / 2, y1: yc + width / 2 };
+}

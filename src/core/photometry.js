@@ -2,7 +2,7 @@
    Pure: no DOM, no globals. */
 import { lookupRaw } from './ies.js';
 import { DEG, hvToDir } from './frames.js';
-import { resampleHV, gridAt, weightedSum } from './grid.js';
+import { resampleHV, gridAt, weightedSum, gridFlux } from './grid.js';
 import { syntheticSegments, supportBox, segmentBoundaries } from './segments.js';
 
 /** Lamp-frame direction (x fwd, yR right-positive, z up) → intensity (cd).
@@ -57,7 +57,7 @@ export const DEFAULT_FIELD = { H: [-40, 40], V: [-12, 10], step: 0.1 };
     spec: { low, segments: [ies] }               – per-file segments, or
           { low, highBeam, edges, soft }          – synthetic segmentation of one high beam
     opt: intensityDir options (hdirRight, angleSys, cForward); field: makeField() result; supportFrac: S_i threshold.
-    Returns { field, low, segs, highBeam, supports, order, boundaries, mode }. */
+    Returns { field, low, segs, highBeam, supports, order, boundaries, mode, segFlux (lm per segment) }. */
 export function buildLamp(spec, opt, field, supportFrac = 0.05) {
   const rs = ies => resampleHV((h, v) => intensityHV(ies, h, v, opt), field);
   const low = spec.low ? rs(spec.low) : null;
@@ -73,7 +73,8 @@ export function buildLamp(spec, opt, field, supportFrac = 0.05) {
   }
   const supports = segs.map(g => supportBox(g, supportFrac));
   const { order, boundaries } = segs.length ? segmentBoundaries(segs) : { order: [], boundaries: [] };
-  return { field, low, segs, highBeam, supports, order, boundaries, mode };
+  const segFlux = segs.map(gridFlux);
+  return { field, low, segs, highBeam, supports, order, boundaries, mode, segFlux };
 }
 
 /** Total intensity grid of a lamp for segment weights w (w_i ∈ [0, 1]; missing = 1). */

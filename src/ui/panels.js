@@ -62,12 +62,47 @@ export function renderTargets(container, targets, typeDefs, onChange) {
   });
 }
 
-/** Glare table. rows from core glareTable(). Numbers are formatted only. */
+/** Pass/fail badge: always icon + text, never colour alone. */
+export function statusBadge(st, title = '') {
+  const t = { pass: ['✓', 'Pass'], fail: ['✗', 'Fail'], none: ['–', 'No limit'] }[st] || ['–', 'No limit'];
+  return `<span class="st st-${st}" title="${title}"><span aria-hidden="true">${t[0]}</span> ${t[1]}</span>`;
+}
+
+export const fmtE = x => (x == null || !isFinite(x) ? '—' : x === 0 ? '0' : Math.abs(x) >= 100 ? x.toFixed(0) : x.toPrecision(3));
+
+/** Glare table. rows from core glareTable() + evaluateGlare(). Numbers are formatted only. */
 export function renderGlareTable(tbody, rows) {
-  const f = x => (!isFinite(x) ? '—' : x === 0 ? '0' : x >= 100 ? x.toFixed(0) : x.toPrecision(3));
-  tbody.innerHTML = rows.length ? rows.map(r => `<tr>
+  const f = fmtE;
+  tbody.innerHTML = rows.length ? rows.map(r => {
+    const why = [`E ${f(r.E)} lx vs limit ${r.E_max == null ? 'none' : f(r.E_max) + ' lx'}`,
+      `de Boer W ${r.W.toFixed(2)} vs min ${r.W_min == null ? 'none' : r.W_min}`].join('; ');
+    return `<tr>
     <td>${r.n} · ${r.target}</td><td>${r.point}</td><td class="num">${f(r.d)}</td>
     <td class="num strong">${f(r.E)}</td><td class="num">${f(r.E_low)}</td><td class="num">${f(r.E_hb)}</td>
-    <td class="num">${isFinite(r.thDeg) ? r.thDeg.toFixed(2) : '—'}</td><td class="num">${r.W.toFixed(2)}</td></tr>`).join('')
-    : '<tr><td colspan="8" class="empty">No targets. Add one in the Targets panel.</td></tr>';
+    <td class="num">${isFinite(r.thDeg) ? r.thDeg.toFixed(2) : '—'}</td><td class="num">${r.W.toFixed(2)}</td>
+    <td class="num">${r.E_max == null ? '—' : f(r.E_max)}</td><td>${statusBadge(r.status, why)}</td></tr>`;
+  }).join('')
+    : '<tr><td colspan="10" class="empty">No targets. Add one in the Targets panel.</td></tr>';
+}
+
+/** Metrics panel: tiles + road-point table. m from main (core numbers only). */
+export function renderMetrics(el, m) {
+  const pct = x => (isFinite(x) ? `${(100 * x).toFixed(1)} %` : '—');
+  const dist = x => (x == null ? `> ${m.xMax} m` : `${x.toFixed(1)} m`);
+  el.innerHTML = `
+    <div class="tiles">
+      <div class="tile"><div class="t-head">Glare verdict</div><div class="t-big">${statusBadge(m.verdict)}</div>
+        <div class="t-sub">${m.verdict === 'none' ? 'No limit values in limits.json' : `${m.nFail} of ${m.nRows} points fail`}</div></div>
+      <div class="tile"><div class="t-head">Kept flux (high-beam zone)</div><div class="t-big">${pct(m.kept)}</div>
+        <div class="t-sub">Segment flux kept by ADB vs full high beam</div></div>
+      <div class="tile"><div class="t-head">Detection distance proxy</div><div class="t-big">${dist(m.det.adb)}</div>
+        <div class="t-sub">${m.det.label}: E first below ${m.thr} lx · full HB ${dist(m.det.hb)}</div></div>
+      <div class="tile"><div class="t-head">Dark tunnel</div><div class="t-big">${m.tunnel ? `${m.tunnel.width.toFixed(2)} m` : '—'}</div>
+        <div class="t-sub">${m.tunnel ? `Across the road at target ${m.tunnel.n} (${fmtE(m.tunnel.d)} m)` : 'No target in view'}</div></div>
+    </div>
+    <div class="table-wrap"><table class="glare">
+      <thead><tr><th>Road point</th><th class="num">x (m)</th><th class="num">y (m)</th><th class="num">E ADB (lx)</th><th class="num">E full HB (lx)</th><th class="num">Kept</th></tr></thead>
+      <tbody>${m.points.map(p => `<tr><td>${p.label}</td><td class="num">${p.x}</td><td class="num">${Math.abs(p.y).toFixed(2)} ${p.y < 0 ? 'R' : p.y > 0 ? 'L' : ''}</td>
+        <td class="num strong">${fmtE(p.E_adb)}</td><td class="num">${fmtE(p.E_hb)}</td><td class="num">${pct(p.ratio)}</td></tr>`).join('')}</tbody>
+    </table></div>`;
 }

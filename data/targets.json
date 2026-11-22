@@ -1,9 +1,13 @@
 {
-  "note": "Default target dimensions, editable in the UI. Target frame: x along the target's own heading, y to its left, z up, in m. Origin on the road under the centre of the target's front (oncoming) or rear (preceding). Seat offsets are for RHT and are mirrored for LHT. tau = transmission in front of the glare point (1 = no screen, worst case). direction: oncoming = drives toward ego (in the oncoming lanes), own = drives ahead of ego in ego's direction.",
+  "note": "Default target dimensions, editable in the UI. Target frame: x along the target's own heading, y to its left, z up, in m. Origin on the road under the centre of the target's front (oncoming) or rear (preceding). Seat offsets are for RHT and are mirrored for LHT. tau = transmission in front of the glare point (1 = no screen, worst case). direction: oncoming = drives toward ego (in the oncoming lanes), own = drives ahead of ego in ego's direction. size: outline length and width (m), drawn in the road view.",
   "types": {
     "oncoming_car": {
       "label": "Oncoming car",
       "direction": "oncoming",
+      "size": {
+        "length": 4.5,
+        "width": 1.8
+      },
       "glarePoints": [
         {
           "id": "driver_eye",
@@ -32,6 +36,10 @@
     "oncoming_truck": {
       "label": "Oncoming truck",
       "direction": "oncoming",
+      "size": {
+        "length": 16.5,
+        "width": 2.55
+      },
       "glarePoints": [
         {
           "id": "driver_eye",
@@ -60,6 +68,10 @@
     "preceding_car": {
       "label": "Preceding car",
       "direction": "own",
+      "size": {
+        "length": 4.5,
+        "width": 1.8
+      },
       "glarePoints": [
         {
           "id": "mirror_interior",
@@ -112,6 +124,10 @@
     "preceding_truck": {
       "label": "Preceding truck",
       "direction": "own",
+      "size": {
+        "length": 16.5,
+        "width": 2.55
+      },
       "glarePoints": [
         {
           "id": "mirror_L",

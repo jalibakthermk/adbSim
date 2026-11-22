@@ -6,10 +6,14 @@ import { buildLamp, lampGrid, sumGrids } from './core/photometry.js';
 import { parseEdges, segmentAt, segmentSpans } from './core/segments.js';
 import { createState } from './ui/state.js';
 import { drawHVMap, drawLegend } from './ui/beamView.js';
-import { readFiles, renderToggles, bindField, renderTargets, renderGlareTable } from './ui/panels.js';
+import { readFiles, renderToggles, bindField, renderTargets, renderGlareTable, renderMetrics, fmtE } from './ui/panels.js';
 import { buildScene } from './core/scene.js';
 import { controllerUpdate } from './core/controller.js';
 import { glareTable } from './core/glare.js';
+import { roadSources, roadE, roadGrid, diffGrid, laneMarkings } from './core/road.js';
+import { keptFlux, defaultRoadPoints, comparePoints, detectionDistance, tunnelOnRoad } from './core/metrics.js';
+import { validateLimits, evaluateGlare, overallStatus } from './core/limits.js';
+import { drawRoad, roadLegendHTML } from './ui/roadView.js';
 
 const $ = id => document.getElementById(id);
 const state = createState();
@@ -17,7 +21,8 @@ const P = state.photometry;
 let lamps = null;   // { L, R } built lamp models
 let mapApi = null;  // from drawHVMap, for click → H/V
 let typeDefs = null; // from data/targets.json
-let last = null;     // last computed { scene, ctrl, weights, rows }
+let last = null;     // last computed { scene, ctrl, weights, rows, road }
+let roadApi = null;  // from drawRoad, for hover → x/y
 
 /* ---------------- Loading ---------------- */
 
@@ -99,10 +104,14 @@ function compute() {
   const scene = buildScene({ vehicle: state.vehicle, road: state.road, targets: state.targets, typeDefs });
   const ctrl = controllerUpdate(scene, lamps, state.controller);
   const weights = state.controller.auto ? ctrl.weights : state.weights;
-  const rows = glareTable(scene, lamps, weights, { La: state.glare.La });
   const n = Object.fromEntries(state.targets.map((t, i) => [t.id, i + 1]));
+  const rows = evaluateGlare(glareTable(scene, lamps, weights, { La: state.glare.La }), state.limits);
   rows.forEach(r => { r.n = n[r.targetId]; });
-  return { scene, ctrl, weights, rows };
+  // Road: ADB and full high beam (all segments on), same lamps and geometry.
+  const opt = { method: state.roadView.method, evalH: state.roadView.evalH };
+  const srcA = roadSources(scene, lamps, weights), srcH = roadSources(scene, lamps, { L: [], R: [] });
+  const fA = (x, y) => roadE(x, y, srcA, opt), fH = (x, y) => roadE(x, y, srcH, opt);
+  return { scene, ctrl, weights, rows, n, fA, fH };
 }
 
 function segState(i, weights) {
@@ -145,6 +154,62 @@ function render() {
     onToggle: toggle,
   });
   renderGlareTable($('glareBody'), last ? last.rows : []);
+  renderRoad();
+  renderMetricsPanel();
+}
+
+/* ---------------- Road view and metrics (Phase 3) ---------------- */
+
+function renderRoad() {
+  if (!last) return;
+  const { scene, fA, fH } = last, rv = state.roadView;
+  const markings = laneMarkings(state.road);
+  const ys = markings.map(m => m.y);
+  const spec = { x0: 0, x1: rv.xMax, y0: Math.min(...ys) - 4, y1: Math.max(...ys) + 4 };
+  const W = $('road').clientWidth || 600;
+  spec.nx = Math.max(80, Math.min(360, Math.round(W / 2)));
+  spec.ny = Math.max(40, Math.min(130, Math.round(spec.nx * 0.4)));       // ≤ 47k points: no worker needed
+  const gA = rv.mode !== 'hb' ? roadGrid(spec, fA) : null, gH = rv.mode !== 'adb' ? roadGrid(spec, fH) : null;
+  const g = rv.mode === 'hb' ? gH : rv.mode === 'adb' ? gA : diffGrid(gH, gA);
+  roadApi = drawRoad($('road'), g, {
+    markings,
+    targets: scene.targets.map(t => ({ ...t.outline, label: String(last.n[t.id]) })),
+    lamps: [scene.lamps.L.pos, scene.lamps.R.pos],
+  });
+  $('roadLegend').innerHTML = roadLegendHTML();
+  $('roadInfo').textContent = `${{ hb: 'Full high beam', adb: 'ADB (current segment states)', diff: 'Difference: full high beam − ADB' }[rv.mode]} · ` +
+    `${rv.method === 'vertical' ? `vertical planes on road at ${rv.evalH} m` : 'road surface'} · max ${fmtE(g.emax)} lx at ${g.at[0].toFixed(0)} m.`;
+}
+
+function renderMetricsPanel() {
+  if (!last) return;
+  const { fA, fH, scene, rows, n } = last, thr = state.metrics.thr, xMax = 400;
+  const pts = comparePoints(defaultRoadPoints(state.road), fA, fH);
+  const edge = pts[0];
+  const det = { label: edge.label.replace(/, .*/, ''), adb: detectionDistance(fA, edge.y, thr, { xMax }), hb: detectionDistance(fH, edge.y, thr, { xMax }) };
+  const t0 = scene.targets[0];
+  const tun = t0 ? tunnelOnRoad(fA, fH, t0.d) : null;
+  renderMetrics($('metrics'), {
+    kept: keptFlux(lamps, last.weights), points: pts, det, thr, xMax,
+    tunnel: tun && { ...tun, n: n[t0.id], d: t0.d },
+    verdict: overallStatus(rows), nFail: rows.filter(r => r.status === 'fail').length, nRows: rows.length,
+  });
+}
+
+/* ---------------- Limits ---------------- */
+
+function applyLimits(text, from) {
+  const msg = $('limitsMsg');
+  try {
+    const L = JSON.parse(text), errs = validateLimits(L);
+    if (errs.length) throw new Error(errs.join(' '));
+    state.limits = L; state.limitsText = text;
+    const nVal = L.glare.reduce((s, g) => s + g.E_max_lx.filter(v => v != null).length, 0) + (L.deBoer_min != null ? 1 : 0);
+    msg.textContent = `${from}: "${L.name || 'unnamed'}", ${L.glare.length} glare entries, ${nVal} limit value${nVal === 1 ? '' : 's'} set.` +
+      (nVal ? '' : ' All values are null, so every point shows "No limit".');
+    msg.classList.remove('err');
+    render();
+  } catch (e) { msg.textContent = `${from}: ${e.message}`; msg.classList.add('err'); }
 }
 
 /** Manual toggle. In ADB auto mode the first toggle switches to manual, starting from the controller's weights. */
@@ -242,6 +307,24 @@ const rerender = () => render();
  ['cTunnel', state.controller, 'minTunnel', 'num'], ['cRule', state.controller, 'rule', 'str'],
  ['cDmin', state.controller, 'dMin', 'num'], ['cMaxT', state.controller, 'maxTargets', 'int'], ['gLa', state.glare, 'La', 'num'],
 ].forEach(([id, obj, key, parse]) => bindField($(id), obj, key, parse, rerender));
+
+[['rvMode', state.roadView, 'mode', 'str'], ['rvMethod', state.roadView, 'method', 'str'], ['rvEvalH', state.roadView, 'evalH', 'num'],
+ ['rvXmax', state.roadView, 'xMax', 'num'], ['mThr', state.metrics, 'thr', 'num'],
+].forEach(([id, obj, key, parse]) => bindField($(id), obj, key, parse, rerender));
+$('road').addEventListener('mousemove', e => {
+  if (!roadApi || !last) return;
+  const r = e.currentTarget.getBoundingClientRect(), xy = roadApi.toXY(e.clientX - r.left, e.clientY - r.top);
+  $('roadCursor').textContent = xy
+    ? `x ${xy[0].toFixed(1)} m, y ${Math.abs(xy[1]).toFixed(2)} m ${xy[1] < 0 ? 'R' : 'L'} · ADB ${fmtE(last.fA(...xy))} lx · HB ${fmtE(last.fH(...xy))} lx` : '';
+});
+$('limitsApply').addEventListener('click', () => applyLimits($('limitsText').value, 'Edited limits'));
+$('limitsReset').addEventListener('click', () => fetchText('data/limits.json').then(t => { $('limitsText').value = t; applyLimits(t, 'data/limits.json'); }));
+$('fLimits').addEventListener('change', async e => {
+  const [f] = await readFiles(e.target); e.target.value = '';
+  if (f) { $('limitsText').value = f.text; applyLimits(f.text, f.name); }
+});
+fetchText('data/limits.json').then(t => { $('limitsText').value = t; applyLimits(t, 'data/limits.json'); })
+  .catch(err => { $('limitsMsg').textContent = `Could not load data/limits.json (${err.message}).`; });
 
 function showTargets() { renderTargets($('targetList'), state.targets, typeDefs, structural => { if (structural) showTargets(); render(); }); }
 $('addTarget').addEventListener('click', () => {
