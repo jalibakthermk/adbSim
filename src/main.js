@@ -264,7 +264,8 @@ function exportRoadScenario() {
     });
     const text = JSON.stringify(sc);
     downloadText(`adbsim-road-${stamp()}.json`, text, 'application/json');
-    msg.textContent = `Road-illuminate scenario: ${sc.frames.length} frame${sc.frames.length === 1 ? '' : 's'}, ${(text.length / 1e6).toFixed(1)} MB. Load it in Road-illuminate under "ADB scenario".`;
+    msg.textContent = `Road scenario: ${sc.frames.length} frame${sc.frames.length === 1 ? '' : 's'}, ${(text.length / 1e6).toFixed(1)} MB. Load it under "ADB scenario" in Road-illuminate or virtualNightDrive.` +
+      (dyn ? '' : ' This is a still scene (one frame): switch on "Targets move" under Dynamic scenario to export a scenario that plays.');
     msg.classList.remove('err');
   } catch (e) { msg.textContent = `Road-illuminate scenario: ${e.message}`; msg.classList.add('err'); }
 }
