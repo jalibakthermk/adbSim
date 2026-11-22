@@ -113,7 +113,7 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
 </head>
 <body>
 <header>
-  <h1>adbSim <span class="ver">v0.4.0</span></h1>
+  <h1>adbSim <span class="ver">v0.5.0</span></h1>
   <span class="sub">ADB / matrix beam simulator</span>
 </header>
 <div class="layout">
@@ -126,8 +126,9 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
         <button type="button" id="csvGlare">Glare table CSV</button><button type="button" id="csvTimeline">Timeline CSV</button>
         <button type="button" id="pngBeam">Beam view PNG</button><button type="button" id="pngRoad">Road view PNG</button>
         <button type="button" id="pngTimeline">Timeline PNG</button>
+        <button type="button" id="roadScenario" class="span2" title="Scenario file for Road-illuminate: beams, segment states and targets per frame">Road-illuminate scenario</button>
       </div>
-      <p class="hint">A project (*.adb.json) embeds the IES files, scene, controller, limits and scenario, so it reproduces the run.</p>
+      <p class="hint">A project (*.adb.json) embeds the IES files, scene, controller, limits and scenario, so it reproduces the run. The Road-illuminate scenario carries the beams, segment states and targets (one frame, or the timeline when targets move) for its road view.</p>
       <div class="msg" id="exportMsg" role="status"></div>
     </section>
     <section class="panel">
@@ -265,7 +266,7 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
     </section>
   </main>
 </div>
-<footer>adbSim v0.4.0 · © 2026 Jalib Akther · MIT License</footer>
+<footer>adbSim v0.5.0 · © 2026 Jalib Akther · MIT License</footer>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>

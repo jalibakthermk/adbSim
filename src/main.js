@@ -18,7 +18,8 @@ import { drawRoad, roadLegendHTML } from './ui/roadView.js';
 import { stepAt, runScenario, timeToDistance } from './core/scenario.js';
 import { drawTimeline, drawSegmentStrip, timelineLegendHTML } from './ui/timeline.js';
 import { glareCSV, timelineCSV, projectToJSON, projectFromJSON, downloadText, downloadCanvas } from './ui/export.js';
-import { VERSION } from './version.js';
+import { VERSION, APP_NAME } from './version.js';
+import { buildRoadScenario, frameTimes } from './core/exchange.js';
 
 const $ = id => document.getElementById(id);
 const state = createState();
@@ -244,6 +245,30 @@ function exportMeta() {
   };
 }
 
+/** Road-illuminate scenario: embedded beams + frames (one frame for a static scene, the timeline when dynamic). */
+function exportRoadScenario() {
+  const msg = $('exportMsg');
+  try {
+    if (!lamps || !last) throw new Error('Load the beams first.');
+    const S = P.sources, synth = P.mode === 'synthetic';
+    const files = [S.lowL, S.lowR, ...(synth ? [S.hbL, S.hbR] : [...S.segL, ...S.segR])].filter(Boolean);
+    const types = files.map(f => parseIES(f.text).type);
+    const cfg = scenarioCfg(), dyn = dynamic();
+    const runCfg = dyn ? cfg : { ...cfg, vEgo_kmh: 0, targets: state.targets.map(x => ({ ...x, speed_kmh: 0 })) };
+    const times = dyn ? frameTimes(state.scenario.tMax, state.scenario.dt) : [0];
+    const sc = buildRoadScenario({
+      photometry: P, types, edges: synth ? parseEdges(P.edgesText).edges : undefined,
+      vehicle: state.vehicle, road: state.road, roadView: state.roadView, controller: state.controller,
+      cfg: runCfg, lampModels: lamps, times, latency_s: latency(), dynamic: dyn, generator: `${APP_NAME} ${VERSION}`,
+      nOf: id => last.n[id],
+    });
+    const text = JSON.stringify(sc);
+    downloadText(`adbsim-road-${stamp()}.json`, text, 'application/json');
+    msg.textContent = `Road-illuminate scenario: ${sc.frames.length} frame${sc.frames.length === 1 ? '' : 's'}, ${(text.length / 1e6).toFixed(1)} MB. Load it in Road-illuminate under "ADB scenario".`;
+    msg.classList.remove('err');
+  } catch (e) { msg.textContent = `Road-illuminate scenario: ${e.message}`; msg.classList.add('err'); }
+}
+
 function saveProject() { downloadText(`adbsim-${stamp()}.adb.json`, projectToJSON(state), 'application/json'); }
 
 function openProject(text, name) {
@@ -426,6 +451,7 @@ $('tSlider').addEventListener('input', e => setTime(parseFloat(e.target.value)))
 $('fitT').addEventListener('click', fitDuration);
 $('timeline').addEventListener('click', e => { if (!tlApi) return; const r = e.currentTarget.getBoundingClientRect(), t = tlApi.toT(e.clientX - r.left); if (t != null) setTime(t); });
 $('saveProject').addEventListener('click', saveProject);
+$('roadScenario').addEventListener('click', exportRoadScenario);
 $('fProject').addEventListener('change', async e => { const [f] = await readFiles(e.target); e.target.value = ''; if (f) openProject(f.text, f.name); });
 $('csvGlare').addEventListener('click', () => last && downloadText(`adbsim-glare-${stamp()}.csv`, glareCSV(last.rows, exportMeta()), 'text/csv'));
 $('csvTimeline').addEventListener('click', () => {
