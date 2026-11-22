@@ -1,6 +1,6 @@
 {
   "name": "adbsim",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "ADB / matrix headlamp simulator",
   "private": true,
   "type": "module",

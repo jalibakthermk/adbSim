@@ -1,6 +1,6 @@
 /* Exchange file for Road-illuminate: an ADB road scenario (*.json, format "adbsim-road-scenario").
-   Road-illuminate rebuilds each lamp as low beam + Σ w_i·segment_i per frame from the embedded IES files,
-   and draws the targets on its road plot. Pure: no DOM, no globals.
+   Road-illuminate and virtualNightDrive rebuild each lamp as low beam + Σ w_i·segment_i per frame from the embedded
+   IES files and place the targets (direction 'oncoming' or 'own') on the road. Pure: no DOM, no globals.
 
    Conventions (same in both tools): x forward, y left, z up (m), origin on the road under the midpoint between
    the lamps; photometric H right-positive, V up (degrees). */
@@ -64,7 +64,7 @@ export function buildRoadScenario(p) {
       fallback: st.ctrl.fallback,
       keptFlux: r4(keptFlux(p.lampModels, st.weights)),
       targets: st.scene.targets.map((tg, i) => ({
-        n: p.nOf ? p.nOf(tg.id) : i + 1, id: tg.id, type: tg.type, label: tg.label, d: r3(tg.d),
+        n: p.nOf ? p.nOf(tg.id) : i + 1, id: tg.id, type: tg.type, label: tg.label, direction: tg.direction, d: r3(tg.d),
         detected: !!st.ctrl.boxes[i]?.visible,
         outline: Object.fromEntries(Object.entries(tg.outline).map(([k, v]) => [k, r3(v)])),
         points: tg.glarePoints.map(g => {
@@ -84,6 +84,7 @@ export function buildRoadScenario(p) {
     controller: { marginH_deg: p.controller.marginH, marginV_deg: p.controller.marginV, rule: p.controller.rule,
       latency_ms: p.dynamic ? p.controller.latency_ms : 0, auto: p.controller.auto !== false },
     dynamic: !!p.dynamic,
+    egoSpeed_kmh: p.dynamic ? (p.cfg.vEgo_kmh || 0) : 0,     // ego speed along the road (for viewers that move the ego car)
     photometry,
     frames,
   };

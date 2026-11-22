@@ -60,6 +60,7 @@ test('static scenario: one frame, embedded IES, right lamp = left (null), weight
   assert.equal(f.targets[0].d, 100); assert.equal(f.targets[0].outline.x0, 100);
   near(f.targets[0].points[0].E_lx, st.rows[0].E, 1e-3 * st.rows[0].E, 'E at the eye');
   assert.equal(f.targets[0].points[0].result, 'none');
+  assert.equal(sc.egoSpeed_kmh, 0); assert.equal(f.targets[0].direction, 'oncoming');
   assert.deepEqual(sc.mounting, { height: 0.65, separation: 1.4, aimV_deg: 0, aimH_deg: 0 });
   assert.equal(sc.evaluation.method, 'vertical');
   assert.ok(JSON.stringify(sc).length < 3e6);
@@ -74,6 +75,7 @@ test('dynamic scenario: frames follow the target as it closes', () => {
   const ds = sc.frames.map(f => f.targets[0].d);
   for (let k = 1; k < ds.length; k++) assert.ok(ds[k] < ds[k - 1]);
   near(ds.at(-1), 200 - 3 * 200 / 3.6, 1e-3, 'last distance');
+  assert.equal(sc.egoSpeed_kmh, 100); assert.equal(sc.frames[0].targets[0].direction, 'oncoming');
 });
 
 test('synthetic mode exports the high beam with its boundaries and soft edge', () => {
