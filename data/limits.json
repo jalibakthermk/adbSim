@@ -1,0 +1,8 @@
+{
+  "name": "Project limits (fill in from UN R149 ADB / customer spec)",
+  "glare": [
+    { "target": "oncoming_car",  "point": "driver_eye",  "dist_m": [50, 100, 200], "E_max_lx": [null, null, null] },
+    { "target": "preceding_car", "point": "mirror",      "dist_m": [50, 100, 200], "E_max_lx": [null, null, null] }
+  ],
+  "deBoer_min": null
+}

@@ -1,0 +1,13 @@
+{
+  "name": "adbsim",
+  "version": "0.0.1",
+  "description": "ADB / matrix headlamp simulator",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "gen-demo": "node tools/gen-demo.js",
+    "serve": "python3 -m http.server 8000"
+  },
+  "license": "MIT"
+}
