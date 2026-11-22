@@ -56,3 +56,13 @@ export function colSums({ field, data }) {
   for (let j = 0; j < field.nV; j++) for (let i = 0; i < field.nH; i++) out[i] += data[j * field.nH + i];
   return out;
 }
+
+/** Sub-grid covering [h0, h1] × [v0, v1] (snapped outward to grid points, clipped to the field). */
+export function cropGrid({ field, data }, [h0, h1], [v0, v1]) {
+  const i0 = Math.max(0, Math.floor((h0 - field.h0) / field.step + 1e-9)), i1 = Math.min(field.nH - 1, Math.ceil((h1 - field.h0) / field.step - 1e-9));
+  const j0 = Math.max(0, Math.floor((v0 - field.v0) / field.step + 1e-9)), j1 = Math.min(field.nV - 1, Math.ceil((v1 - field.v0) / field.step - 1e-9));
+  const f = { h0: hAt(field, i0), v0: vAt(field, j0), step: field.step, nH: i1 - i0 + 1, nV: j1 - j0 + 1 };
+  const out = new Float32Array(f.nH * f.nV);
+  for (let j = 0; j < f.nV; j++) out.set(data.subarray((j0 + j) * field.nH + i0, (j0 + j) * field.nH + i1 + 1), j * f.nH);
+  return { field: f, data: out };
+}

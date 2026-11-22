@@ -11,9 +11,10 @@ function colour(t) {
 }
 
 /** grid: { field, data }; max: colour-scale top (cd).
-    overlay: { boundaries: [H°], spans: [{ h0, h1, v0, v1, hc, label, off }] }
+    overlay: { boundaries: [H°], spans: [{ h0, h1, v0, v1, hc, label, off, mixed }],
+               boxes: [{ hMin, hMax, vMin, vMax, kind: 'detected' | 'margin', label }] }
     Returns { toHV(px, py) → [H, V] | null } for click handling. */
-export function drawHVMap(canvas, grid, max, { boundaries = [], spans = [], cdFloor = 10 } = {}) {
+export function drawHVMap(canvas, grid, max, { boundaries = [], spans = [], boxes = [], cdFloor = 10 } = {}) {
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.clientWidth, cssH = canvas.clientHeight;
   canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
@@ -49,7 +50,7 @@ export function drawHVMap(canvas, grid, max, { boundaries = [], spans = [], cdFl
   for (const s of spans) {
     if (!s || !s.off) continue;
     const xa = x(s.h0), xb = x(s.h1), ya = y(s.v1), yb = y(s.v0);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(xa, ya, xb - xa, yb - ya);
+    ctx.fillStyle = s.mixed ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.35)'; ctx.fillRect(xa, ya, xb - xa, yb - ya);
     ctx.save(); ctx.beginPath(); ctx.rect(xa, ya, xb - xa, yb - ya); ctx.clip();
     ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1;
     ctx.beginPath();
@@ -62,16 +63,31 @@ export function drawHVMap(canvas, grid, max, { boundaries = [], spans = [], cdFl
   ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(255,255,255,0.85)';
   for (const b of boundaries) { ctx.beginPath(); ctx.moveTo(x(b), pad.t); ctx.lineTo(x(b), pad.t + h); ctx.stroke(); }
   ctx.setLineDash([]);
+  // Target boxes: detected box solid, box with margins dashed, numbered.
+  for (const b of boxes) {
+    const xa = x(b.hMin), xb = x(b.hMax), ya = y(b.vMax), yb = y(b.vMin);
+    ctx.lineWidth = b.kind === 'margin' ? 1.5 : 1.5;
+    ctx.strokeStyle = b.kind === 'margin' ? '#ffd24a' : '#ffffff';
+    ctx.setLineDash(b.kind === 'margin' ? [5, 3] : []);
+    ctx.strokeRect(xa, ya, xb - xa, yb - ya);
+    if (b.kind === 'margin' && b.label) {
+      ctx.setLineDash([]); ctx.font = 'bold 11px system-ui, sans-serif'; ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(xa, ya - 15, ctx.measureText(b.label).width + 6, 14);
+      ctx.fillStyle = '#ffd24a'; ctx.fillText(b.label, xa + 3, ya - 4);
+    }
+  }
+  ctx.setLineDash([]);
   ctx.restore();
   ctx.strokeStyle = frame; ctx.strokeRect(pad.l, pad.t, w, h);
 
   // Segment numbers above the map; off segments say so in text, not only by hatching.
   ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center';
   for (const s of spans) {
-    if (!s) continue;
+    if (!s || s.hc < H0 || s.hc > H1) continue; // label only segments whose centre is in view
     ctx.fillStyle = text;
     ctx.fillText(s.label, x(s.hc), pad.t - 18);
-    if (s.off) ctx.fillText('off', x(s.hc), pad.t - 6);
+    // Text, not only hatching: 'off', or 'mix' when off in one lamp only; ✕ / ◐ where the word does not fit.
+    if (s.off) ctx.fillText(x(s.h1) - x(s.h0) >= 22 ? (s.mixed ? 'mix' : 'off') : (s.mixed ? '◐' : '✕'), x(s.hc), pad.t - 6);
   }
 
   // Ticks.

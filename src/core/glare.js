@@ -1,7 +1,7 @@
 /* Glare maths: de Boer, veiling luminance, TI and GLEn's straight-road oncoming evaluation.
    Ported unchanged from GLEn v0.2. Pure: no DOM, no globals. No limit values live here. */
 import { DEG, toLampFrame, dirToHV } from './frames.js';
-import { intensityDir } from './photometry.js';
+import { intensityDir, lampIntensityHV } from './photometry.js';
 
 /** de Boer discomfort W (Schmidt-Clausen & Bindels). terms: [{ E (lx), thDeg }], La in cd/m². */
 export function deBoerW(terms, La) {
@@ -83,4 +83,44 @@ export function evaluate(cfg) {
     out.push({ eye: he, rows });
   }
   return out;
+}
+
+/* ---------------- Glare at target points (Phase 2) ---------------- */
+
+/** Illuminance at a glare point P from both ego lamps: E = Σ_k τ · I_k(dir_kP) / r_kP² (plane normal to each ray).
+    The observer looks back toward the ego vehicle (−x), so θ_k is the angle between −x and the ray to lamp k.
+    Returns { E, perLamp: { L: { I, E, thDeg, H, V }, R }, W } (de Boer W at adaptation luminance La). */
+export function glareAtPoint(P, tau, scene, lampModels, weights, { La = 1, thMin = 0.1 } = {}) {
+  const per = {}, terms = []; let E = 0;
+  for (const k of ['L', 'R']) {
+    const L = scene.lamps[k];
+    const dx = P[0] - L.pos[0], dy = P[1] - L.pos[1], dz = P[2] - L.pos[2];
+    const r = Math.hypot(dx, dy, dz);
+    if (dx <= 0 || r === 0) { per[k] = { I: 0, E: 0, thDeg: NaN, H: NaN, V: NaN }; continue; }
+    const [H, V] = dirToHV(...toLampFrame(dx, dy, dz, L.aimV, L.aimH));
+    const I = lampIntensityHV(lampModels[k], weights[k] || [], H, V);
+    const e = tau * I / (r * r);
+    const th = Math.max(thMin, Math.acos(dx / r) / DEG);
+    per[k] = { I, E: e, thDeg: th, H, V };
+    terms.push({ E: e, thDeg: th }); E += e;
+  }
+  return { E, perLamp: per, W: deBoerW(terms, La).W };
+}
+
+/** Glare table for every target glare point: E with the given weights, with the low beam only and with full high beam. */
+export function glareTable(scene, lampModels, weights, opts = {}) {
+  const none = { L: lampModels.L.segs.map(() => 0), R: lampModels.R.segs.map(() => 0) };
+  const full = { L: lampModels.L.segs.map(() => 1), R: lampModels.R.segs.map(() => 1) };
+  const rows = [];
+  for (const t of scene.targets) for (const g of t.glarePoints) {
+    const adb = glareAtPoint(g.p, g.tau, scene, lampModels, weights, opts);
+    rows.push({
+      targetId: t.id, target: t.label, type: t.type, d: t.d, pointId: g.id, point: g.label,
+      E: adb.E, W: adb.W, perLamp: adb.perLamp,
+      thDeg: Math.min(adb.perLamp.L.thDeg, adb.perLamp.R.thDeg),
+      E_low: glareAtPoint(g.p, g.tau, scene, lampModels, none, opts).E,
+      E_hb: glareAtPoint(g.p, g.tau, scene, lampModels, full, opts).E,
+    });
+  }
+  return rows;
 }

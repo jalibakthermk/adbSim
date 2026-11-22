@@ -23,3 +23,33 @@ export function dirToHV(x, yR, z) {
 export function hvToDir(Hdeg, Vdeg) {
   return [Math.cos(Vdeg * DEG) * Math.cos(Hdeg * DEG), Math.cos(Vdeg * DEG) * Math.sin(Hdeg * DEG), Math.sin(Vdeg * DEG)];
 }
+
+/* ---------------- Ego geometry (Phase 2) ---------------- */
+
+/** Lamp positions in the ego frame: { L: [x, y, z], R: [...] }. Origin on the road under the lamps' midpoint. */
+export function lampPositions({ spacing, hLamp, xLamp = 0 }) {
+  return { L: [xLamp, spacing / 2, hLamp], R: [xLamp, -spacing / 2, hLamp] };
+}
+
+/** Display angles [H right+, V up] (degrees) of point `to` seen from `from` (ego frame), in a frame aimed by aimV/aimH. */
+export function anglesFrom(from, to, aimV = 0, aimH = 0) {
+  const d = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+  return dirToHV(...toLampFrame(d[0], d[1], d[2], aimV, aimH));
+}
+
+/** Re-observe a camera-frame angular box from a lamp (parallax).
+    Points on the box outline are projected along their camera rays to depth `depth` (m ahead of the camera, in x),
+    then seen from the lamp at `lampPos` with aim aimV/aimH. Returns the lamp-frame bounding box. */
+export function cameraBoxToLamp(box, depth, cam, lampPos, aimV = 0, aimH = 0) {
+  const hs = [box.hMin, (box.hMin + box.hMax) / 2, box.hMax], vs = [box.vMin, (box.vMin + box.vMax) / 2, box.vMax];
+  const out = { hMin: Infinity, hMax: -Infinity, vMin: Infinity, vMax: -Infinity };
+  for (const h of hs) for (const v of vs) {
+    const [x, yR, z] = hvToDir(h, v);                 // camera frame = ego axes (camera not aimed)
+    const k = depth / x;
+    const p = [cam[0] + k * x, cam[1] - k * yR, cam[2] + k * z];
+    const [H, V] = anglesFrom(lampPos, p, aimV, aimH);
+    out.hMin = Math.min(out.hMin, H); out.hMax = Math.max(out.hMax, H);
+    out.vMin = Math.min(out.vMin, V); out.vMax = Math.max(out.vMax, V);
+  }
+  return out;
+}

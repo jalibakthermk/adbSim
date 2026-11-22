@@ -51,6 +51,7 @@ canvas.view{display:block;width:100%;height:400px}
 button{font:inherit;color:var(--text-primary);background:var(--surface-1);border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer}
 button:hover{background:var(--surface-2)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row .grow{flex:1;min-width:0;padding:5px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);font:inherit;color:var(--text-primary)}
 .msg{font-size:12px;color:var(--text-secondary);margin-top:8px;line-height:1.4}
 .msg.err{color:var(--critical)}
 .msg.err::before{content:"⚠ "}
@@ -68,13 +69,31 @@ button:hover{background:var(--surface-2)}
 .seg-mixed{background:linear-gradient(135deg,var(--accent) 50%,var(--surface-1) 50%)}
 canvas.legend{display:block;width:100%;height:32px}
 canvas.view{cursor:crosshair}
+.target-row{display:grid;grid-template-columns:22px 1fr 1fr 28px;grid-template-areas:"n type type rm" ". lane d .";gap:4px 6px;align-items:center;margin:6px 0 10px;font-size:12px;color:var(--text-secondary)}
+.target-row .tnum{grid-area:n}.target-row select{grid-area:type}.target-row .rm{grid-area:rm}
+.target-row label{display:flex;gap:4px;align-items:center;white-space:nowrap}
+.target-row .l-lane{grid-area:lane}.target-row .l-d{grid-area:d}
+.target-row select,.target-row input{padding:4px 5px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);font:inherit;color:var(--text-primary);min-width:0}
+.target-row select{width:100%}
+.target-row input{width:100%}
+.target-row .tnum{font-weight:600;color:#9a7300;text-align:center}
+.target-row .rm{padding:2px 0}
+.check{display:flex;gap:8px;align-items:center;margin:6px 0;color:var(--text-secondary)}
+table.glare{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+table.glare th{font-weight:600;color:var(--text-secondary);text-align:left;border-bottom:1px solid var(--border);padding:6px 8px;white-space:nowrap}
+table.glare td{border-bottom:1px solid var(--grid);padding:6px 8px;white-space:nowrap}
+table.glare .num{text-align:right}
+table.glare th.num{text-align:right}
+table.glare .strong{font-weight:600}
+table.glare .empty{color:var(--text-muted);text-align:center}
+.table-wrap{overflow-x:auto}
 
 footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
 </style>
 </head>
 <body>
 <header>
-  <h1>adbSim <span class="ver">v0.1.0</span></h1>
+  <h1>adbSim <span class="ver">v0.2.0</span></h1>
   <span class="sub">ADB / matrix beam simulator</span>
 </header>
 <div class="layout">
@@ -106,8 +125,36 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
       <div class="msg" id="photoMsg" role="status"></div>
     </section>
     <section class="panel">
-      <h2>Scene</h2>
-      <p class="hint">Targets, road and the ADB controller come in Phase 2.</p>
+      <h2>Targets</h2>
+      <div id="targetList"></div>
+      <div class="row"><select id="newType" aria-label="Type of target to add" class="grow"></select><button type="button" id="addTarget">Add target</button></div>
+      <p class="hint">Straight road. Lane 1 is your own lane (own direction) or the lane next to the centre line (oncoming). d is to the front of an oncoming target and to the rear of a preceding one.</p>
+      <div class="msg" id="sceneMsg" role="status"></div>
+    </section>
+    <section class="panel">
+      <h2>ADB controller</h2>
+      <label class="check"><input type="checkbox" id="cAuto"> ADB auto (controller sets the segments)</label>
+      <div class="field"><label for="cMarginH">Margin H (°, each side)</label><input id="cMarginH" type="number" min="0" step="0.1"></div>
+      <div class="field"><label for="cMarginV">Margin V (°, each side)</label><input id="cMarginV" type="number" min="0" step="0.1"></div>
+      <div class="field"><label for="cTunnel">Min. dark tunnel (°)</label><input id="cTunnel" type="number" min="0" step="0.1"></div>
+      <div class="field"><label for="cRule">Segment rule</label><select id="cRule"><option value="off">Off on overlap</option><option value="dim">Dim by covered fraction</option></select></div>
+      <div class="field"><label for="cDmin">Low beam below d (m)</label><input id="cDmin" type="number" min="0" step="5"></div>
+      <div class="field"><label for="cMaxT">Low beam above N targets</label><input id="cMaxT" type="number" min="0" step="1"></div>
+    </section>
+    <section class="panel">
+      <h2>Vehicle and road</h2>
+      <div class="field"><label for="rTraffic">Traffic</label><select id="rTraffic"><option value="RHT">Right-hand (RHT)</option><option value="LHT">Left-hand (LHT)</option></select></div>
+      <div class="field"><label for="rLaneW">Lane width (m)</label><input id="rLaneW" type="number" min="1" step="0.25"></div>
+      <div class="field"><label for="rLanes">Lanes per direction</label><input id="rLanes" type="number" min="1" step="1"></div>
+      <div class="field"><label for="vSpacing">Lamp spacing (m)</label><input id="vSpacing" type="number" min="0" step="0.05"></div>
+      <div class="field"><label for="vHeight">Lamp height (m)</label><input id="vHeight" type="number" min="0.1" step="0.05"></div>
+      <div class="field"><label for="vAimV">Aim V (°, + up)</label><input id="vAimV" type="number" step="0.1"></div>
+      <div class="field"><label for="vAimH">Aim H (°, + right)</label><input id="vAimH" type="number" step="0.1"></div>
+      <div class="field"><label for="camX">Camera x (m, + forward)</label><input id="camX" type="number" step="0.1"></div>
+      <div class="field"><label for="camY">Camera y (m, + left)</label><input id="camY" type="number" step="0.1"></div>
+      <div class="field"><label for="camZ">Camera z (m)</label><input id="camZ" type="number" min="0" step="0.05"></div>
+      <div class="field"><label for="gLa">Adaptation lum. (cd/m²)</label><input id="gLa" type="number" min="0.01" step="0.1"></div>
+      <p class="hint">Origin on the road under the midpoint between the lamps. Aim applies to both lamps.</p>
     </section>
   </aside>
   <main class="main">
@@ -115,6 +162,7 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
       <h2>Beam view (H-V, lamp frame)</h2>
       <div class="toolbar">
         <select id="view" aria-label="Lamp shown"><option value="LR">Both lamps (sum)</option><option value="L">Left lamp</option><option value="R">Right lamp</option></select>
+        <select id="zoom" aria-label="Field shown"><option value="full">H ±40°</option><option value="zoom">H ±10°, V −4…4°</option></select>
         <button type="button" id="allOn">All on</button><button type="button" id="allOff">All off</button>
         <span class="cursor" id="cursor"></span>
       </div>
@@ -122,11 +170,19 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
       <canvas id="legend" class="legend" aria-hidden="true"></canvas>
       <p class="hint" id="beamInfo">Loading demo beams…</p>
       <div id="toggles"></div>
-      <p class="hint">Click a segment button, or click the map, to switch that segment off or on.</p>
+      <p class="hint">Click a segment button, or click the map, to switch that segment off or on (this switches ADB auto off).</p>
+    </section>
+    <section class="panel" style="margin-top:12px">
+      <h2>Glare at target points</h2>
+      <div class="table-wrap"><table class="glare">
+        <thead><tr><th>Target</th><th>Point</th><th class="num">d (m)</th><th class="num">E ADB (lx)</th><th class="num">E low only (lx)</th><th class="num">E full HB (lx)</th><th class="num">θ (°)</th><th class="num">de Boer W</th></tr></thead>
+        <tbody id="glareBody"></tbody>
+      </table></div>
+      <p class="hint">E = Σ τ·I/r² over both lamps, on a plane normal to each ray. θ is the angle between the observer's view back toward you and the nearer lamp. Pass/fail against limits.json comes in Phase 3.</p>
     </section>
   </main>
 </div>
-<footer>adbSim v0.1.0 · © 2026 Jalib Akther · MIT License</footer>
+<footer>adbSim v0.2.0 · © 2026 Jalib Akther · MIT License</footer>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>

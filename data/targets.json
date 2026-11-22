@@ -1,48 +1,148 @@
 {
-  "note": "Default target dimensions, editable in the UI. Target frame: x along the target's own heading, y to its left, z up, in m. Origin on the road under the centre of the target's front (oncoming) or rear (preceding). Seat offsets are for RHT and are mirrored for LHT. tau = transmission in front of the glare point (1 = no screen, worst case).",
+  "note": "Default target dimensions, editable in the UI. Target frame: x along the target's own heading, y to its left, z up, in m. Origin on the road under the centre of the target's front (oncoming) or rear (preceding). Seat offsets are for RHT and are mirrored for LHT. tau = transmission in front of the glare point (1 = no screen, worst case). direction: oncoming = drives toward ego (in the oncoming lanes), own = drives ahead of ego in ego's direction.",
   "types": {
     "oncoming_car": {
       "label": "Oncoming car",
+      "direction": "oncoming",
       "glarePoints": [
-        { "id": "driver_eye", "label": "Driver eye", "x": -2.0, "y": 0.37, "z": 1.1, "tau": 1 }
+        {
+          "id": "driver_eye",
+          "label": "Driver eye",
+          "x": -2.0,
+          "y": 0.37,
+          "z": 1.1,
+          "tau": 1
+        }
       ],
       "lamps": [
-        { "id": "headlamp_L", "x": 0, "y": 0.7, "z": 0.65 },
-        { "id": "headlamp_R", "x": 0, "y": -0.7, "z": 0.65 }
+        {
+          "id": "headlamp_L",
+          "x": 0,
+          "y": 0.7,
+          "z": 0.65
+        },
+        {
+          "id": "headlamp_R",
+          "x": 0,
+          "y": -0.7,
+          "z": 0.65
+        }
       ]
     },
     "oncoming_truck": {
       "label": "Oncoming truck",
+      "direction": "oncoming",
       "glarePoints": [
-        { "id": "driver_eye", "label": "Driver eye", "x": -1.0, "y": 0.5, "z": 2.35, "tau": 1 }
+        {
+          "id": "driver_eye",
+          "label": "Driver eye",
+          "x": -1.0,
+          "y": 0.5,
+          "z": 2.35,
+          "tau": 1
+        }
       ],
       "lamps": [
-        { "id": "headlamp_L", "x": 0, "y": 1.0, "z": 1.0 },
-        { "id": "headlamp_R", "x": 0, "y": -1.0, "z": 1.0 }
+        {
+          "id": "headlamp_L",
+          "x": 0,
+          "y": 1.0,
+          "z": 1.0
+        },
+        {
+          "id": "headlamp_R",
+          "x": 0,
+          "y": -1.0,
+          "z": 1.0
+        }
       ]
     },
     "preceding_car": {
       "label": "Preceding car",
+      "direction": "own",
       "glarePoints": [
-        { "id": "mirror_interior", "label": "Interior mirror", "x": 2.4, "y": 0, "z": 1.25, "tau": 1 },
-        { "id": "mirror_L", "label": "Left side mirror", "x": 2.6, "y": 0.95, "z": 1.0, "tau": 1 },
-        { "id": "mirror_R", "label": "Right side mirror", "x": 2.6, "y": -0.95, "z": 1.0, "tau": 1 },
-        { "id": "driver_eye", "label": "Driver eye (via mirrors)", "x": 2.0, "y": 0.37, "z": 1.1, "tau": 1 }
+        {
+          "id": "mirror_interior",
+          "label": "Interior mirror",
+          "x": 2.4,
+          "y": 0,
+          "z": 1.25,
+          "tau": 1
+        },
+        {
+          "id": "mirror_L",
+          "label": "Left side mirror",
+          "x": 2.6,
+          "y": 0.95,
+          "z": 1.0,
+          "tau": 1
+        },
+        {
+          "id": "mirror_R",
+          "label": "Right side mirror",
+          "x": 2.6,
+          "y": -0.95,
+          "z": 1.0,
+          "tau": 1
+        },
+        {
+          "id": "driver_eye",
+          "label": "Driver eye (via mirrors)",
+          "x": 2.0,
+          "y": 0.37,
+          "z": 1.1,
+          "tau": 1
+        }
       ],
       "lamps": [
-        { "id": "rear_L", "x": 0, "y": 0.65, "z": 0.9 },
-        { "id": "rear_R", "x": 0, "y": -0.65, "z": 0.9 }
+        {
+          "id": "rear_L",
+          "x": 0,
+          "y": 0.65,
+          "z": 0.9
+        },
+        {
+          "id": "rear_R",
+          "x": 0,
+          "y": -0.65,
+          "z": 0.9
+        }
       ]
     },
     "preceding_truck": {
       "label": "Preceding truck",
+      "direction": "own",
       "glarePoints": [
-        { "id": "mirror_L", "label": "Left side mirror", "x": 15.5, "y": 1.35, "z": 2.0, "tau": 1 },
-        { "id": "mirror_R", "label": "Right side mirror", "x": 15.5, "y": -1.35, "z": 2.0, "tau": 1 }
+        {
+          "id": "mirror_L",
+          "label": "Left side mirror",
+          "x": 15.5,
+          "y": 1.35,
+          "z": 2.0,
+          "tau": 1
+        },
+        {
+          "id": "mirror_R",
+          "label": "Right side mirror",
+          "x": 15.5,
+          "y": -1.35,
+          "z": 2.0,
+          "tau": 1
+        }
       ],
       "lamps": [
-        { "id": "rear_L", "x": 0, "y": 0.9, "z": 1.0 },
-        { "id": "rear_R", "x": 0, "y": -0.9, "z": 1.0 }
+        {
+          "id": "rear_L",
+          "x": 0,
+          "y": 0.9,
+          "z": 1.0
+        },
+        {
+          "id": "rear_R",
+          "x": 0,
+          "y": -0.9,
+          "z": 1.0
+        }
       ]
     }
   }

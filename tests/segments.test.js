@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { near } from './helpers.js';
-import { makeField, resampleHV, gridAt, weightedSum, gridMax, colSums } from '../src/core/grid.js';
+import { makeField, resampleHV, gridAt, weightedSum, gridMax, colSums, cropGrid } from '../src/core/grid.js';
 import {
   parseEdges, syntheticSegments, supportBox, centroidH, segmentBoundaries, segmentAt, segmentSpans,
 } from '../src/core/segments.js';
@@ -81,4 +81,13 @@ test('segmentSpans tile the field between boundaries and use the support at the 
   near(spans[0].h1, spans[1].h0, 0, 'shared boundary');
   near(spans[3].h1, supports[3].hMax, 0, 'outer right');
   near(spans[1].hc, (spans[1].h0 + spans[1].h1) / 2, 1e-12, 'centre');
+});
+
+test('cropGrid keeps values and snaps outward to grid points', () => {
+  const g = resampleHV((h, v) => 10 * h + v, field);
+  const c = cropGrid(g, [-1.2, 2], [-0.4, 1]);
+  near(c.field.h0, -1.5, 1e-12, 'h0'); near(c.field.v0, -0.5, 1e-12, 'v0');
+  assert.equal(c.field.nH, 8); assert.equal(c.field.nV, 4);
+  near(gridAt(c, 0.5, 0.5), gridAt(g, 0.5, 0.5), 1e-6, 'value');
+  assert.equal(cropGrid(g, [-50, 50], [-9, 9]).field.nH, field.nH);
 });
