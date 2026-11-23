@@ -4,64 +4,53 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>adbSim — ADB Matrix Beam Simulator</title>
+<meta name="description" content="adbSim: adaptive driving beam (ADB) matrix headlamp simulator — segment control around targets, glare at target points, road view and timeline.">
+<meta name="theme-color" content="#0a0f2c">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- beamKit: shared design framework for the lighting tools (https://jalibakthermk.github.io/beamkit/) -->
+<link rel="stylesheet" href="https://jalibakthermk.github.io/beamkit/beamkit.css">
+<script>try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="https://jalibakthermk.github.io/beamkit/beamkit.js" defer></script>
 <style>
+/* adbSim-specific styles only; the rest comes from beamkit.css.
+   The canvas code reads the older names below, so they are mapped onto the beamKit tokens. */
 :root{
-  color-scheme:light;
-  --page:#f4f4f1; --surface-1:#fcfcfb; --surface-2:#f0efec;
-  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#7a7974;
-  --grid:#e1e0d9; --border:rgba(11,11,11,0.12); --accent:#2a78d6;
-  --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    color-scheme:dark;
-    --page:#121211; --surface-1:#1a1a19; --surface-2:#232322;
-    --text-primary:#f0efec; --text-secondary:#c3c2b7; --text-muted:#8f8e86;
-    --grid:#2c2c2a; --border:rgba(255,255,255,0.12); --accent:#3987e5;
-  }
-}
-:root[data-theme="dark"]{
-  color-scheme:dark;
-  --page:#121211; --surface-1:#1a1a19; --surface-2:#232322;
-  --text-primary:#f0efec; --text-secondary:#c3c2b7; --text-muted:#8f8e86;
-  --grid:#2c2c2a; --border:rgba(255,255,255,0.12); --accent:#3987e5;
+  --page:var(--cds-background,#f2f4f8); --surface-1:var(--cds-layer-01,#fff); --surface-2:var(--cds-layer-02,#e8ebf1);
+  --text-primary:var(--cds-text-primary,#161616); --text-secondary:var(--cds-text-secondary,#525a66); --text-muted:var(--cds-text-helper,#6f7682);
+  --grid:var(--cds-grid,#e4e7ec); --border:var(--cds-border-subtle,#d5d9e0); --accent:var(--cds-button-primary,#0f62fe);
+  --good:var(--cds-ok-text,#0e6027); --warning:var(--cds-warn,#f1c21b); --critical:var(--cds-bad,#da1e28);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
-body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px;background:var(--page);color:var(--text-primary);min-height:100vh}
-header{padding:18px 24px 10px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-header h1{margin:0;font-size:22px;letter-spacing:.2px}
-header .ver{font-size:13px;font-weight:500;color:var(--text-muted)}
-header .sub{color:var(--text-secondary)}
-.layout{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:0 24px 24px}
-@media (max-width:900px){.layout{grid-template-columns:1fr;padding:0 16px 16px}header{padding:14px 16px 8px}}
-.panel{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
-.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin:0 0 10px}
-.panel + .panel{margin-top:12px}
+.panel{padding:14px 16px}
+.panel h2{margin:0 0 10px}
+.layout > aside .panel + .panel{margin-top:0}
+.main > .panel + .panel{margin-top:16px}
 .hint{color:var(--text-muted);font-size:12px;margin:4px 0 8px;line-height:1.4}
 .main{min-width:0}
 canvas.view{display:block;width:100%;height:400px}
-.field{display:grid;grid-template-columns:1fr 130px;align-items:center;gap:8px;margin:6px 0}
-.field label{color:var(--text-secondary)}
-.field input,.field select{width:100%;padding:5px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);font:inherit;color:var(--text-primary)}
 .file{margin:8px 0 10px}
 .file label{display:block;color:var(--text-secondary);margin-bottom:3px}
 .file input{font-size:12px;max-width:100%}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .file .fname{font-size:12px;color:var(--text-muted);margin-top:3px;word-break:break-all}
-button{font:inherit;color:var(--text-primary);background:var(--surface-1);border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer}
-button:hover{background:var(--surface-2)}
+button{font:inherit;font-size:13px;color:var(--text-primary);background:var(--surface-2);border:1px solid transparent;border-radius:0;padding:6px 12px;min-height:32px;cursor:pointer}
+button:hover{background:var(--cds-layer-hover-01,#f7f9fc);border-color:var(--cds-border-strong,#8d8d8d)}
+#demo,#saveProject{background:var(--accent);color:#fff}
+#demo:hover,#saveProject:hover{background:var(--cds-button-primary-hover,#0353e9);border-color:transparent}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.row .grow{flex:1;min-width:0;padding:5px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);font:inherit;color:var(--text-primary)}
+.row .grow{flex:1;min-width:0;height:32px;padding:0 8px;border:0;border-bottom:1px solid var(--cds-border-strong,#8d8d8d);background:var(--surface-2);font:inherit;font-size:13px;color:var(--text-primary)}
 .msg{font-size:12px;color:var(--text-secondary);margin-top:8px;line-height:1.4}
 .msg.err{color:var(--critical)}
 .msg.err::before{content:"⚠ "}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
-.toolbar select{padding:5px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);font:inherit;color:var(--text-primary)}
-.toolbar .cursor{margin-left:auto;color:var(--text-muted);font-size:12px;font-variant-numeric:tabular-nums}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 8px;padding:0;background:none;border:0}
+.toolbar select,.toolbar input[type=number]{height:32px;padding:0 8px;border:0;border-bottom:1px solid var(--cds-border-strong,#8d8d8d);background:var(--surface-2);font:inherit;font-size:13px;color:var(--text-primary)}
+.toolbar .cursor{margin-left:auto;color:var(--text-muted);font-size:12px;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 .toggle-row{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:8px}
 .toggle-title{color:var(--text-secondary);font-size:12px;min-width:44px}
-.seg{display:flex;flex-direction:column;align-items:center;min-width:40px;padding:4px 6px;line-height:1.15}
+.seg{display:flex;flex-direction:column;align-items:center;min-width:40px;padding:4px 6px;line-height:1.15;border:1px solid var(--border)}
 .seg .seg-n{font-weight:600}
 .seg .seg-s{font-size:10px;color:var(--text-muted)}
 .seg-on{background:var(--accent);border-color:transparent}
@@ -75,48 +64,76 @@ canvas.view{cursor:crosshair}
 .target-row label{display:flex;gap:4px;align-items:center;white-space:nowrap}
 .target-row .l-lane{grid-area:lane}.target-row .l-d{grid-area:d}.target-row .l-v{grid-area:v}
 .target-row label{flex-direction:column;align-items:flex-start;gap:2px}
-.target-row select,.target-row input{padding:4px 5px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);font:inherit;color:var(--text-primary);min-width:0}
+.target-row select,.target-row input{height:30px;padding:0 5px;border:0;border-bottom:1px solid var(--cds-border-strong,#8d8d8d);background:var(--surface-2);font:inherit;color:var(--text-primary);min-width:0}
 .target-row select{width:100%}
 .target-row input{width:100%}
-.target-row .tnum{font-weight:600;color:#9a7300;text-align:center}
+.target-row .tnum{font-weight:600;color:var(--cds-warn-text,#8e6a00);text-align:center;font-family:var(--font-mono)}
 .target-row .rm{padding:2px 0}
 .check{display:flex;gap:8px;align-items:center;margin:6px 0;color:var(--text-secondary)}
 table.glare{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
-table.glare th{font-weight:600;color:var(--text-secondary);text-align:left;border-bottom:1px solid var(--border);padding:6px 8px;white-space:nowrap}
+table.glare th{font-weight:600;color:var(--text-secondary);text-align:left;border-bottom:1px solid var(--border);padding:6px 8px;white-space:nowrap;background:var(--surface-2)}
 table.glare td{border-bottom:1px solid var(--grid);padding:6px 8px;white-space:nowrap}
 table.glare .num{text-align:right}
 table.glare th.num{text-align:right}
+table.glare th{font-family:var(--font-body)}
 table.glare .strong{font-weight:600}
 table.glare .empty{color:var(--text-muted);text-align:center}
 .table-wrap{overflow-x:auto}
 .st{display:inline-flex;gap:4px;align-items:center;font-weight:600;white-space:nowrap}
 .st-pass{color:var(--good)}.st-fail{color:var(--critical)}.st-none{color:var(--text-muted);font-weight:500}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px}
-.tile{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
-.tile .t-head{font-size:12px;color:var(--text-secondary);margin-bottom:4px}
-.tile .t-big{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:12px}
+.tile{background:var(--surface-1);border:1px solid var(--border);border-top:3px solid var(--accent);padding:10px 12px}
+.tile .t-head{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);margin-bottom:4px;display:block}
+.tile .t-big{font-family:var(--font-display);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
 .tile .t-sub{font-size:11.5px;color:var(--text-muted);margin-top:3px;line-height:1.35}
-canvas.roadcv{display:block;width:100%;height:300px;border-radius:6px}
+canvas.roadcv{display:block;width:100%;height:300px;border-radius:0}
 .legend-chips{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--text-secondary);margin:6px 0}
 .legend-chips span{display:inline-flex;gap:4px;align-items:center}
-.legend-chips i{display:inline-block;width:12px;height:12px;border-radius:2px}
+.legend-chips i{display:inline-block;width:12px;height:12px;border-radius:0}
 canvas.tl{display:block;width:100%;height:240px}
 canvas.strip{display:block;width:100%;height:84px;margin-top:6px}
 input[type=range]{flex:1;min-width:120px}
 .export-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .export-grid .span2{grid-column:1/-1}
 .export-grid button{padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-textarea.json{width:100%;min-height:150px;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text-primary)}
+textarea.json{width:100%;min-height:150px;font:12px var(--font-mono);padding:6px;border:1px solid var(--border);border-radius:0;background:var(--surface-2);color:var(--text-primary)}
 
-footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
+/* file inputs inside the kit's square style */
+.file input[type=file]{font-size:12px}
+.file input[type=file]::file-selector-button{font:inherit;border:0;background:var(--surface-2);color:var(--text-primary);padding:6px 10px;margin-right:8px;cursor:pointer}
+.file input[type=file]::file-selector-button:hover{background:var(--cds-layer-hover-01,#f7f9fc)}
+.check{margin:6px 0}
 </style>
 </head>
 <body>
-<header>
-  <h1>adbSim <span class="ver">v0.5.1</span></h1>
-  <span class="sub">ADB / matrix beam simulator</span>
+<a class="skip" href="#results">Skip to results</a>
+<div class="shell">
+  <div class="wrap">
+    <a class="shell-name" href="https://jalibakthermk.github.io/"><img src="favicon.svg" alt="" width="24" height="24"> adbSim <span class="crumb">· Jalib Akther</span></a>
+    <div class="shell-actions">
+      <a href="https://jalibakthermk.github.io/" title="All projects"><svg class="i"><use href="#icon-grid"/></svg> <span class="lbl">Projects</span></a>
+      <a href="https://github.com/jalibakthermk/adbSim" title="Source code"><svg class="i"><use href="#icon-github"/></svg> <span class="lbl">Code</span></a>
+      <button type="button" data-bk-theme aria-label="Toggle light and dark theme" title="Toggle light / dark">
+        <svg class="i sun"><use href="#icon-sun"/></svg><svg class="i moon"><use href="#icon-moon"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<header class="titleband">
+  <svg class="motif" viewBox="0 0 640 200" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+    <ellipse cx="420" cy="140" rx="210" ry="56"/><ellipse cx="420" cy="140" rx="150" ry="40"/><ellipse cx="420" cy="140" rx="92" ry="25"/><ellipse cx="420" cy="140" rx="44" ry="12"/>
+    <path class="cut" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M0 140H330L366 104H640"/>
+  </svg>
+  <div class="wrap">
+    <p class="eyebrow">Headlamps · ADB / matrix beam · glare</p>
+    <h1><b>adbSim</b> ADB matrix beam simulator <span class="ver">v0.5.1</span></h1>
+    <p class="sub">Segment-by-segment control of a matrix headlamp around other road users: beam view, glare at target points, road view, timeline and kept illumination.</p>
+    <span class="privacy"><svg class="i"><use href="#icon-lock"/></svg> Files are processed locally in your browser — nothing is uploaded.</span>
+  </div>
 </header>
-<div class="layout">
+
+<div class="wrap layout">
   <aside>
     <section class="panel">
       <h2>Project and export</h2>
@@ -208,7 +225,7 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
       <div class="msg" id="limitsMsg" role="status"></div>
     </section>
   </aside>
-  <main class="main">
+  <main class="main" id="results">
     <section class="panel">
       <h2>Beam view (H-V, lamp frame)</h2>
       <div class="toolbar">
@@ -266,7 +283,14 @@ footer{padding:12px 24px 24px;color:var(--text-muted);font-size:12px}
     </section>
   </main>
 </div>
-<footer>adbSim v0.5.1 · © 2026 Jalib Akther · MIT License</footer>
+<div class="wrap foot">
+  <footer class="bk">
+    <span>adbSim v0.5.1 · © 2026 Jalib Akther · MIT License</span>
+    <span><svg class="i"><use href="#icon-pin"/></svg> Thrissur, India</span>
+    <a href="https://jalibakthermk.github.io/">More lighting tools →</a>
+    <span class="disc">Results are engineering estimates; check them against measured data before relying on them.</span>
+  </footer>
+</div>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>

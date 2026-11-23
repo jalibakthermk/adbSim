@@ -429,6 +429,8 @@ $('beam').addEventListener('mousemove', e => {
 });
 
 let resizeT; addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(render, 150); });
+// beamKit theme toggle: redraw the canvases so their colours follow the theme
+if (window.beamKit) window.beamKit.theme.onChange(() => render({ rerun: false }));
 
 /* ---------------- Scene, targets, controller ---------------- */
 const rerender = () => render();
